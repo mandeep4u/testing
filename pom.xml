@@ -15,8 +15,8 @@
     <!-- Centralized dependency versions -->
     <properties>
         <!-- Tradis / internal libs -->
-        <tardis.suffix>10.2.1</tardis.suffix>
-        <ch.suffix>1.9.4</ch.suffix>
+        <tardis.suffix>11.2.1</tardis.suffix>
+        <ch.suffix>2.9.4</ch.suffix>
 
         <!-- Framework versions -->
         <spring.boot.version>3.2.5</spring.boot.version>

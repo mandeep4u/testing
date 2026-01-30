@@ -1,55 +1,596 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="
-           http://maven.apache.org/POM/4.0.0
-           http://maven.apache.org/xsd/maven-4.0.0.xsd">
+Tardis-security-bom repo Pom file
 
-    <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.risk.dat</groupId>
-    <artifactId>parent-platform</artifactId>
-    <version>10.4.0</version>
-    <packaging>pom</packaging>
+<groupId>com.relx.rba</groupId>
+<artifactId>tardis-security-bom</artifactId>
+<version>1.${tardis.suffix}</version>
+<packaging>pom</packaging>
 
-    <!-- Centralized dependency versions -->
-    <properties>
-        <!-- Tradis / internal libs -->
-        <tardis.suffix>11.2.1</tardis.suffix>
-        <ch.suffix>2.9.4</ch.suffix>
+<name>Tardis Security BOM</name>
+<description>Repository providing a BOM file of security mitigations</description>
+<url>https://github.com/risk-shared/tardis-security-bom</url>
+<inceptionYear>2024</inceptionYear>
 
-        <!-- Framework versions -->
-        <spring.boot.version>3.2.5</spring.boot.version>
-        <jackson.version>2.17.1</jackson.version>
+<properties>
+    <tardis.suffix>26.0-SNAPSHOT</tardis.suffix>
 
-        <!-- Build / language -->
-        <java.version>17</java.version>
-        <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
-    </properties>
+    <!-- These are also defined in Tardis, and must be kept in sync -->
+    <avro.version>1.12.1</avro.version>
+    <json.version>20250517</json.version>
+    <netty.version>4.2.9.Final</netty.version>
+    <protobuf.version>3.25.5</protobuf.version>  <!-- See issue #18183 before updating -->
+    <sqlite-jdbc.version>3.51.1.0</sqlite-jdbc.version>
+    <json-smart.version>2.6.0</json-smart.version>
+    <jackson.version>2.19.4</jackson.version>
+    <apache-httpclient5.version>5.5.1</apache-httpclient5.version>
+    <guava.version>33.5.0-jre</guava.version>
+    <commons-compress.version>1.28.0</commons-compress.version>
+    <postgresql.version>42.7.8</postgresql.version>
+    <jetty.version>12.1.5</jetty.version>
+    <beanutils.version>1.11.0</beanutils.version>
+    <nimbus.version>10.5</nimbus.version>
+    <spring.version>6.2.15</spring.version><!-- changing this requires building and testing mini apps and hipie services, and probably require the other spring packages to update in kind-->
+    <spring-security-core.version>6.5.7</spring-security-core.version> <!-- changing this requires building and testing mini apps and hipie services -->
+    <tomcat.version>11.0.15</tomcat.version><!-- Mini apps need to be fully tested when changing this value -->
+    <mssql-jdbc.version>13.2.1.jre11</mssql-jdbc.version> <!-- We specifically need to use the .jre11 version - don't update to other variants See https://learn.microsoft.com/en-us/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server?view=sql-server-ver16 -->
+    <log4j.version>2.25.3</log4j.version>
+    <apache-kafka.version>4.1.1</apache-kafka.version><!-- apache-kafka.version and kafkabom.version MUST be kept in sync - they will update 1:1 -->
+    <kafkabom.version>1.3.1</kafkabom.version><!-- see https://mvnrepository.com/artifact/com.bakdata.kafka/kafka-bom -->
+    <!-- End of Tardis section -->
 
-    <!-- Optional: dependencyManagement (children still use properties) -->
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-dependencies</artifactId>
-                <version>${spring.boot.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
+    <!-- These are only used here -->
+    <imageio.version>3.12.0</imageio.version>
 
-    <build>
-        <pluginManagement>
+    <maven-enforcer-plugin.version>3.5.0</maven-enforcer-plugin.version>
+
+    <!-- Use JFrog for package resolution and deployment; repos vary based on which deploy-* profile is in play -->
+    <jfrog>https://useast.jfrog.lexisnexisrisk.com/artifactory</jfrog>
+    <resolve.snapshot>${jfrog}/glb-maven-snapshot-virtual</resolve.snapshot>
+    <resolve.release>${jfrog}/glb-maven-virtual</resolve.release>
+    <resolve.experiment>${jfrog}/tardis-maven-experiment-local</resolve.experiment>
+    <deploy.snapshot>${jfrog}/tardis-maven-snapshot-local</deploy.snapshot>
+    <deploy.release>${jfrog}/tardis-maven-release-local</deploy.release>
+    <deploy.experiment>${jfrog}/tardis-maven-experiment-local</deploy.experiment>
+</properties>
+
+<!-- Package resolution (may be overridden by deploy-* profiles below) -->
+<repositories>
+    <repository>
+        <id>jfrog-maven</id>
+        <url>${resolve.snapshot}</url>
+        <snapshots><enabled>true</enabled></snapshots>
+    </repository>
+</repositories>
+
+<!-- Package deployment (may be overridden by deploy-* profiles below) -->
+<distributionManagement>
+    <repository>
+        <id>jfrog-maven</id>
+        <url>${deploy.release}</url>
+    </repository>
+    <snapshotRepository>
+        <id>jfrog-maven</id>
+        <url>${deploy.snapshot}</url>
+    </snapshotRepository>
+</distributionManagement>
+
+<!--
+    Don't forget to keep your dependencies and plugins up-to-date! For assistance:
+        mvn versions:display-dependency-updates
+        mvn versions:display-plugin-updates
+-->
+
+<dependencyManagement>
+    <dependencies>
+        <!--
+            This section isn't strictly for security reasons, but we've seen other problems when
+            jsr310 isn't a consistent version throughout the dependency tree.
+        -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!--
+            The following block of declarations exists for the sole purpose of
+            eliminating the use of vulnerable dependencies (generally transitive).
+        -->
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>${sqlite-jdbc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+            <version>1.1.10.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>${json.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.ivy</groupId>
+            <artifactId>ivy</artifactId>
+            <version>2.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-archiver</artifactId>
+            <version>4.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>3.9.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <version>${avro.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.airlift</groupId>
+            <artifactId>aircompressor</artifactId>
+            <version>0.27</version><!-- beware of major version change -->
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-bom</artifactId>
+            <version>${netty.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor.netty</groupId>
+            <artifactId>reactor-netty-http</artifactId>
+            <version>1.2.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.twelvemonkeys.imageio</groupId>
+            <artifactId>imageio-metadata</artifactId>
+            <version>${imageio.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>2.3.34</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>1.9.25</version><!-- beware of major version change -->
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.bower</groupId>
+            <artifactId>lodash</artifactId>
+            <version>4.17.21</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>datatables</artifactId>
+            <version>1.13.5</version><!-- beware of major version change -->
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.asynchttpclient</groupId>
+            <artifactId>async-http-client</artifactId>
+            <version>3.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>net.minidev</groupId>
+            <artifactId>json-smart</artifactId>
+            <version>${json-smart.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-fileupload</groupId>
+            <artifactId>commons-fileupload</artifactId>
+            <version>1.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>${apache-httpclient5.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+            <version>${jetty.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-http</artifactId>
+            <version>${jetty.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.classgraph</groupId>
+            <artifactId>classgraph</artifactId>
+            <version>4.8.179</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars</groupId>
+            <artifactId>bootstrap</artifactId>
+            <version>5.3.6</version><!-- a big jump from 2.2.2-1, but all of v2-v4 has vulnerabilities -->
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>${commons-compress.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-net</groupId>
+            <artifactId>commons-net</artifactId>
+            <version>3.11.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.webjars.npm</groupId>
+            <artifactId>jquery</artifactId>
+            <version>3.7.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.james</groupId>
+            <artifactId>apache-mime4j-core</artifactId>
+            <version>0.8.12</version>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webflux</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-core</artifactId>
+            <version>${spring-security-core.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-core</artifactId>
+            <version>${tomcat.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>commons-beanutils</groupId>
+            <artifactId>commons-beanutils</artifactId>
+            <version>${beanutils.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>${nimbus.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>${mssql-jdbc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-client</artifactId>
+            <version>2.47</version><!-- Latest in 2.* series, but not latest overall -->
+        </dependency>
+        <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>jakarta.mail</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-bom</artifactId>
+            <version>${log4j.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
+            <!-- This is a 3rd-party providing a BOM that org.apache.kafka should really provide themselves! -->
+            <groupId>com.bakdata.kafka</groupId>
+            <artifactId>kafka-bom</artifactId>
+            <version>${kafkabom.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+        <dependency>
+            <!-- This is pulled in via kubernetes-client - we may be able to get rid of it when that updates past 7.5.1 -->
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-core</artifactId>
+            <version>4.5.24</version>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<build>
+    <pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <version>2.18.0</version>
+                <configuration>
+                    <rulesUri>file:///${project.basedir}/releaseVersions.xml</rulesUri>
+                </configuration>
+            </plugin>
+        </plugins>
+    </pluginManagement>
+
+    <plugins>
+        <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>flatten-maven-plugin</artifactId>
+            <version>1.7.0</version>
+            <executions>
+                <execution>
+                    <id>flatten</id>
+                    <phase>process-resources</phase>
+                    <goals>
+                        <goal>flatten</goal>
+                    </goals>
+                    <configuration>
+                        <updatePomFile>true</updatePomFile>
+                        <flattenMode>bom</flattenMode>
+                        <pomElements>
+                            <distributionManagement>remove</distributionManagement>
+                            <profiles>remove</profiles>
+                            <properties>keep</properties>
+                            <repositories>remove</repositories>
+                        </pomElements>
+                    </configuration>
+                </execution>
+                <execution>
+                    <id>flatten-clean</id>
+                    <phase>clean</phase>
+                    <goals>
+                        <goal>clean</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <version>3.1.4</version>
+            <configuration>
+                <retryFailedDeploymentCount>5</retryFailedDeploymentCount>
+                <deployAtEnd>true</deployAtEnd> <!-- useful for multi-module builds -->
+            </configuration>
+        </plugin>
+
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <version>${maven-enforcer-plugin.version}</version>
+            <executions>
+                <execution>
+                    <id>enforce-maven</id>
+                    <goals>
+                        <goal>enforce</goal>
+                    </goals>
+                    <configuration>
+                        <rules>
+                            <requireMavenVersion>
+                                <version>3.6.3</version>
+                            </requireMavenVersion>
+                        </rules>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
+
+<profiles>
+    <!--
+        The deploy profiles below must be triggered via the "deploymode" property, as in
+            -Ddeploymode=R (to allow release deployments)
+            -Ddeploymode=S (to allow snapshot deployment)
+            -Ddeploymode=X (to allow experimental deployment)
+        Do not trigger them manually from IntelliJ or with the -P argument! These profiles
+        ensure the build isn't violating version rules for the project or its dependencies,
+        and defines the correct artifactory for each situation.
+    -->
+    <profile>
+        <id>deploy-null</id>
+        <activation><property><name>!deploymode</name></property></activation>
+        <distributionManagement>
+            <!-- This effectively disables deploys -->
+            <repository><id>jfrog-maven</id></repository>
+            <snapshotRepository><id>jfrog-maven</id></snapshotRepository>
+        </distributionManagement>
+        <properties>
+            <resolve.url>${resolve.snapshot}</resolve.url>
+            <deploy.url>${deploy.snapshot}</deploy.url>
+        </properties>
+        <build>
+            <plugins>
+                <plugin>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven-enforcer-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>enforce-deploy-profile</id>
+                            <phase>deploy</phase>
+                            <goals><goal>enforce</goal></goals>
+                            <configuration>
+                                <rules>
+                                    <requireProperty>
+                                        <property>deploymode</property>
+                                        <message>[ERROR] deploymode property is required to run deploy phase</message>
+                                    </requireProperty>
+                                </rules>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </build>
+    </profile>
+
+    <profile>
+        <id>deploy-snapshot</id>
+        <activation><property><name>deploymode</name><value>S</value></property></activation>
+        <properties>
+            <resolve.url>${resolve.snapshot}</resolve.url>
+            <deploy.url>${deploy.snapshot}</deploy.url>
+        </properties>
+        <build>
             <plugins>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>${maven.compiler.plugin.version}</version>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven-enforcer-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>enforce-snapshot</id>
+                            <goals><goal>enforce</goal></goals>
+                            <configuration>
+                                <rules>
+                                    <requireSnapshotVersion>
+                                        <message>[ERROR] Project version must end in -SNAPSHOT during snapshot deployment!</message>
+                                    </requireSnapshotVersion>
+                                    <requireProperty>
+                                        <property>deploymode</property>
+                                        <message>[ERROR] Deploy profiles must only be triggered via -Ddeploymode=R or -Ddeploymode=S</message>
+                                        <regex>^[sS]$</regex>
+                                        <regexMessage>[ERROR] Deploy profiles must only be triggered via -Ddeploymode=R or -Ddeploymode=S</regexMessage>
+                                    </requireProperty>
+                                </rules>
+                                <fail>true</fail>
+                            </configuration>
+                        </execution>
+                    </executions>
                 </plugin>
             </plugins>
-        </pluginManagement>
-    </build>
+        </build>
+    </profile>
 
+    <profile>
+        <id>deploy-release</id>
+        <activation><property><name>deploymode</name><value>R</value></property></activation>
+        <properties>
+            <resolve.url>${resolve.release}</resolve.url>
+            <deploy.url>${deploy.release}</deploy.url>
+        </properties>
+        <repositories>
+            <repository>
+                <id>jfrog-maven</id>
+                <url>${resolve.release}</url>
+                <snapshots><enabled>false</enabled></snapshots>
+            </repository>
+        </repositories>
+        <build>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>${maven-enforcer-plugin.version}</version>
+                    <executions>
+                        <execution>
+                            <id>enforce-release</id>
+                            <goals><goal>enforce</goal></goals>
+                            <configuration>
+                                <rules>
+                                    <requireReleaseVersion>
+                                        <message>[ERROR] Project version may not be a SNAPSHOT during "release" deployment!</message>
+                                    </requireReleaseVersion>
+                                    <requireReleaseDeps>
+                                        <message>[ERROR] No SNAPSHOT dependencies allowed during "release" deployment!</message>
+                                    </requireReleaseDeps>
+                                    <requireProperty>
+                                        <property>deploymode</property>
+                                        <message>[ERROR] Deploy profiles must only be triggered via -Ddeploymode=R or -Ddeploymode=S</message>
+                                        <regex>^[rR]$</regex>
+                                        <regexMessage>[ERROR] Deploy profiles must only be triggered via -Ddeploymode=R or -Ddeploymode=S</regexMessage>
+                                    </requireProperty>
+                                </rules>
+                                <fail>true</fail>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </build>
+    </profile>
+
+    <profile>
+        <id>deploy-experiment</id>
+        <activation><property><name>deploymode</name><value>X</value></property></activation>
+        <repositories>
+            <repository>
+                <id>jfrog-maven</id>
+                <url>${resolve.experiment}</url>
+                <snapshots><enabled>true</enabled></snapshots>
+            </repository>
+        </repositories>
+        <distributionManagement>
+            <repository>
+                <id>jfrog-maven</id>
+                <url>${deploy.experiment}</url>
+            </repository>
+            <snapshotRepository>
+                <id>jfrog-maven</id>
+                <url>${deploy.experiment}</url>
+            </snapshotRepository>
+        </distributionManagement>
+        <properties>
+            <resolve.url>${resolve.experiment}</resolve.url>
+            <deploy.url>${deploy.experiment}</deploy.url>
+        </properties>
+    </profile>
+</profiles>
 </project>
